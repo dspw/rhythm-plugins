@@ -176,7 +176,7 @@ std::unique_ptr<GenericEditor> DeviceThread::createEditor(SourceNode* sn)
 void DeviceThread::handleBroadcastMessage(String msg)
 {
     StringArray parts = StringArray::fromTokens(msg, " ", "");
-
+    //LOGC("[dspw] bcast msg = ",msg);
     //std::cout << "Received " << msg << std::endl;
 
     if (parts[0].equalsIgnoreCase("ACQBOARD"))
@@ -202,13 +202,56 @@ void DeviceThread::handleBroadcastMessage(String msg)
                     DigitalOutputCommand command;
                     command.ttlLine = ttlLine;
                     command.state = true;
-
+                    
                     digitalOutputCommands.push(command);
 
                     DigitalOutputTimer* timer = new DigitalOutputTimer(this, ttlLine, eventDurationMs);
 
                     digitalOutputTimers.add(timer);
 
+                }
+            }
+        }
+    }
+    // added to handle DSPW messages
+    if (parts[0].equalsIgnoreCase ("DSPW"))
+    {
+        int timerEventCmd = parts[3].getIntValue();
+        
+        // each eventstate bit corresponds to an event 0x1 = event 1, 0xf = event 1,2,3,4
+        int eventAdjust[8] = {0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80};
+        int ttlLineAdjust = eventAdjust[timerEventCmd - 1];
+        
+        if (parts[1].equalsIgnoreCase ("RCB"))
+        {
+            if (parts.size() > 2)
+            {
+                String command = parts[2];
+                
+                if (command.equalsIgnoreCase ("TRIGGER"))  //Trigger vs Timer
+                {
+                    ttlLineAdjust = eventAdjust[timerEventCmd - 1];
+                    // Set(1) or Clear(0) Event #
+                    if (parts.size() == 5)
+                    {
+                        int ttlLine = parts[3].getIntValue(); // - 1;
+                        if (ttlLine < 1 || ttlLine > 8)
+                            //    if (ttlLine < 0 || ttlLine > 7)
+                            return;
+                        
+                        int eventNum = parts[4].getIntValue();
+                        if (eventNum < 0 || eventNum > 1)
+                            return;
+                        
+                        if (eventNum == 1)
+                        {
+                            eventState =  ttlLineAdjust;
+                        }
+                        else if (eventNum == 0)
+                        {
+                            eventState = 0;
+                        }
+                    }
                 }
             }
         }
@@ -231,9 +274,11 @@ void DeviceThread::addDigitalOutputCommand(DigitalOutputTimer* timerToDelete, in
 DeviceThread::DigitalOutputTimer::DigitalOutputTimer(DeviceThread* board_, int ttlLine_, int eventDurationMs)
     : board(board_)
 {
-
+    LOGC("[dspw] eventDurationMS = ",eventDurationMs);
+    LOGC("[dspw] ttlLine = ",ttlLine_);
+    
     tllOutputLine = ttlLine_;
-
+    
     startTimer(eventDurationMs);
 }
 
@@ -1780,7 +1825,7 @@ bool DeviceThread::updateBuffer()
         int auxIndex, chanIndex;
         int numStreams = enabledStreams.size();
         int nSamps = Rhd2000DataBlock::getSamplesPerDataBlock(evalBoard->isUSB3());
-
+        //dspw LOGC("nSamps = ", nSamps);  // dspw
         //evalBoard->printFIFOmetrics();
         for (int samp = 0; samp < nSamps; samp++)
         {
@@ -1873,7 +1918,9 @@ bool DeviceThread::updateBuffer()
             }
 
             uint64 ttlEventWord = *(uint64*)(bufferPtr + index) & 65535;
-
+            ttlEventWord = ttlEventWord |  eventState;
+            //LOGC("eventWord = ", ttlEventWord);
+         
             index += 4;
 
             sourceBuffers[0]->addToBuffer(thisSample,

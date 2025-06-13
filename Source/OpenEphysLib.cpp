@@ -43,7 +43,7 @@ extern "C" EXPORT void getLibInfo(Plugin::LibraryInfo* info)
 {
 	info->apiVersion = PLUGIN_API_VER;
 	info->name = "Rhythm Plugins";
-	info->libVersion = "0.2.6";
+	info->libVersion = "0.2.6a";
 	info->numPlugins = NUM_PLUGINS;
 }
 
@@ -58,7 +58,7 @@ extern "C" EXPORT int getPluginInfo(int index, Plugin::PluginInfo* info)
 		break;
 	case 1:
 		info->type = Plugin::Type::DATA_THREAD;
-		info->dataThread.name = "Intan RHD USB";
+		info->dataThread.name = "DSPW Intan USB";
 		info->dataThread.creator = &createDataThread<RhythmNode::IntanUSBInterface>;
 		break;
 	case 2:

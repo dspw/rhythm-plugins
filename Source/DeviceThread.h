@@ -247,7 +247,7 @@ namespace RhythmNode
 		int MAX_NUM_DATA_STREAMS;
 
 	private:
-
+        uint64 eventState = 0; //dspw
 		std::queue<DigitalOutputCommand> digitalOutputCommands;
 
 		OwnedArray<DigitalOutputTimer> digitalOutputTimers;
